@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "308173525879",
+    "project_id": "lifting-challenge",
+    "storage_bucket": "lifting-challenge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:308173525879:android:64fc08834e1ae800564772",
+        "android_client_info": {
+          "package_name": "com.piloshiki.lifting_challenge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBR-KgaM4j5dagEg8JJ-x9StA9tjiNBoCk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
