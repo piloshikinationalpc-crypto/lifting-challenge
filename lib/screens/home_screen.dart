@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/record_service.dart';
 import 'record_screen.dart';
 import 'ranking_screen.dart';
+import 'game_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,14 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('リフティングチャレンジ'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.sports_soccer),
+            tooltip: 'ゲーム',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const GameScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.leaderboard),
             tooltip: 'ランキング',
