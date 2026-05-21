@@ -12,7 +12,20 @@
           "package_name": "com.piloshiki.lifting_challenge"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "308173525879-dk3gcaatd080los6rkg73nr9lvvbrbvq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.piloshiki.lifting_challenge",
+            "certificate_hash": "a09ba0f2d6150ae05f83f5ce7085a4f4e65365ba"
+          }
+        },
+        {
+          "client_id": "308173525879-8fk6vvt3n040jedft8u2mgilligaorl8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBR-KgaM4j5dagEg8JJ-x9StA9tjiNBoCk"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "308173525879-8fk6vvt3n040jedft8u2mgilligaorl8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "308173525879-9ct1oclpdi7n5eeho5c5ob0njdc6fhbc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.piloshiki.liftingChallenge"
+              }
+            }
+          ]
         }
       }
     }

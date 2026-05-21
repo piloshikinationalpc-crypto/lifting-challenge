@@ -11,9 +11,12 @@ class RecordService {
   Stream<List<LiftingRecord>> myRecords(String uid) {
     return _col
         .where('uid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((s) => s.docs.map(LiftingRecord.fromDoc).toList());
+        .map((s) {
+          final list = s.docs.map(LiftingRecord.fromDoc).toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   }
 
   Stream<List<LiftingRecord>> ranking() {
@@ -25,12 +28,8 @@ class RecordService {
   }
 
   Future<int> myBest(String uid) async {
-    final snap = await _col
-        .where('uid', isEqualTo: uid)
-        .orderBy('count', descending: true)
-        .limit(1)
-        .get();
+    final snap = await _col.where('uid', isEqualTo: uid).get();
     if (snap.docs.isEmpty) return 0;
-    return snap.docs.first['count'] as int;
+    return snap.docs.map((d) => d['count'] as int).reduce((a, b) => a > b ? a : b);
   }
 }

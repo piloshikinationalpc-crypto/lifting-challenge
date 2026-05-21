@@ -24,9 +24,9 @@ class _GameScreenState extends State<GameScreen>
   double _ballY = 0.5;
   // ボールのY速度（正=落下）
   double _ballVelocity = 0.0;
-  static const double _gravity = 0.015;
+  static const double _gravity = 0.004;
   // タップ可能な最小Y（ここより低くなったらタップ受付）
-  static const double _tapZone = 0.65;
+  static const double _tapZone = 0.50;
 
   Timer? _gameTimer;
   // ミスのタイムアウト: ボールが地面(Y>=1.0)に達したら終了
@@ -54,7 +54,10 @@ class _GameScreenState extends State<GameScreen>
 
   void _kick() {
     // 上向きに弾く（キックの強さ）
-    _ballVelocity = -0.045 + (Random().nextDouble() * 0.01 - 0.005);
+    // ランダムジャンプ: 最小 -0.038、最大 -0.114（3倍）
+    final minKick = 0.038;
+    final maxKick = 0.114;
+    _ballVelocity = -(minKick + Random().nextDouble() * (maxKick - minKick));
   }
 
   void _update() {
