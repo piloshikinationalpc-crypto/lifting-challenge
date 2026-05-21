@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import '../models/lifting_record.dart';
 import '../services/record_service.dart';
 import '../services/storage_service.dart';
+import '../services/gemini_service.dart';
 
 class RecordScreen extends StatefulWidget {
   const RecordScreen({super.key});
@@ -19,6 +20,7 @@ class _RecordScreenState extends State<RecordScreen> {
   File? _videoFile;
   VideoPlayerController? _videoController;
   bool _saving = false;
+  bool _analyzing = false;
 
   @override
   void dispose() {
@@ -42,6 +44,35 @@ class _RecordScreenState extends State<RecordScreen> {
       _videoController?.dispose();
       _videoController = ctrl;
     });
+  }
+
+  Future<void> _analyzeWithAI() async {
+    if (_videoFile == null) return;
+    setState(() => _analyzing = true);
+    try {
+      final count = await GeminiService().countLiftings(_videoFile!);
+      if (count != null && count > 0) {
+        _countController.text = count.toString();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('AI判別: $count 回')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('判別できませんでした。手動で入力してください')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('AI判別エラー: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
+    }
   }
 
   Future<void> _save() async {
@@ -134,6 +165,27 @@ class _RecordScreenState extends State<RecordScreen> {
                 ),
               ],
             ),
+            if (_videoFile != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _analyzing ? null : _analyzeWithAI,
+                  icon: _analyzing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_analyzing ? 'AI判別中...' : 'AIでリフティング回数を判別'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.deepPurple,
+                    side: const BorderSide(color: Colors.deepPurple),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _saving ? null : _save,
