@@ -7,6 +7,7 @@ import '../services/record_service.dart';
 import 'record_screen.dart';
 import 'ranking_screen.dart';
 import 'game_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -34,6 +35,14 @@ class HomeScreen extends StatelessWidget {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const RankingScreen()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            tooltip: 'プロフィール',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             ),
           ),
           IconButton(
