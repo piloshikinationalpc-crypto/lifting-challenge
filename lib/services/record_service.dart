@@ -27,6 +27,10 @@ class RecordService {
         .map((s) => s.docs.map(LiftingRecord.fromDoc).toList());
   }
 
+  Future<void> deleteRecord(String id) async {
+    await _col.doc(id).delete();
+  }
+
   Future<int> myBest(String uid) async {
     final snap = await _col.where('uid', isEqualTo: uid).get();
     if (snap.docs.isEmpty) return 0;
