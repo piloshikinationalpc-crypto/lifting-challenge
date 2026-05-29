@@ -8,9 +8,9 @@ class RecordService {
     await _col.add(record.toMap());
   }
 
-  Stream<List<LiftingRecord>> myRecords(String uid) {
+  Stream<List<LiftingRecord>> myRecords(String groupId) {
     return _col
-        .where('uid', isEqualTo: uid)
+        .where('groupId', isEqualTo: groupId)
         .snapshots()
         .map((s) {
           final list = s.docs.map(LiftingRecord.fromDoc).toList();

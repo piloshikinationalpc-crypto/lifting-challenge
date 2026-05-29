@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum CourtType { full, half }
+enum ArrowPathStyle { arrow, zigzag, dotted }
 
 class PlayerPiece {
   final String id;
   final int team; // 0=自チーム, 1=相手チーム
-  final double x; // フィールド幅に対する相対値 0.0-1.0
-  final double y; // フィールド高さに対する相対値 0.0-1.0
+  final double x;
+  final double y;
   final String label;
 
   PlayerPiece({
@@ -32,28 +33,39 @@ class PlayerPiece {
 }
 
 class ArrowPath {
-  final List<List<double>> points; // [[x, y], ...]  相対値
+  final List<List<double>> points;
   final int colorIndex;
+  final ArrowPathStyle style;
 
-  ArrowPath({required this.points, this.colorIndex = 0});
+  ArrowPath({required this.points, this.colorIndex = 0, this.style = ArrowPathStyle.arrow});
 
-  Map<String, dynamic> toMap() => {'points': points, 'colorIndex': colorIndex};
+  Map<String, dynamic> toMap() => {
+        'points': points,
+        'colorIndex': colorIndex,
+        'style': style.name,
+      };
 
   factory ArrowPath.fromMap(Map<String, dynamic> m) => ArrowPath(
         points: (m['points'] as List)
             .map((p) => (p as List).map((v) => (v as num).toDouble()).toList())
             .toList(),
         colorIndex: m['colorIndex'] as int? ?? 0,
+        style: ArrowPathStyle.values.firstWhere(
+          (s) => s.name == (m['style'] as String?),
+          orElse: () => ArrowPathStyle.arrow,
+        ),
       );
 }
 
 class TacticalMap {
   final String? id;
   final String uid;
+  final String groupId;
   final CourtType courtType;
   final List<PlayerPiece> players;
   final double? ballX;
   final double? ballY;
+  final List<List<double>> ghostBalls;
   final List<ArrowPath> arrows;
   final DateTime createdAt;
   final String? noteId;
@@ -63,10 +75,12 @@ class TacticalMap {
   TacticalMap({
     this.id,
     required this.uid,
+    required this.groupId,
     this.courtType = CourtType.full,
     this.players = const [],
     this.ballX,
     this.ballY,
+    this.ghostBalls = const [],
     this.arrows = const [],
     required this.createdAt,
     this.noteId,
@@ -79,12 +93,16 @@ class TacticalMap {
     return TacticalMap(
       id: doc.id,
       uid: d['uid'] as String,
+      groupId: d['groupId'] as String? ?? '',
       courtType: (d['courtType'] as String?) == 'half' ? CourtType.half : CourtType.full,
       players: ((d['players'] as List?)?.cast<Map<String, dynamic>>() ?? [])
           .map(PlayerPiece.fromMap)
           .toList(),
       ballX: (d['ballX'] as num?)?.toDouble(),
       ballY: (d['ballY'] as num?)?.toDouble(),
+      ghostBalls: ((d['ghostBalls'] as List?) ?? [])
+          .map((g) => (g as List).map((v) => (v as num).toDouble()).toList())
+          .toList(),
       arrows: ((d['arrows'] as List?)?.cast<Map<String, dynamic>>() ?? [])
           .map(ArrowPath.fromMap)
           .toList(),
@@ -97,10 +115,12 @@ class TacticalMap {
 
   Map<String, dynamic> toMap() => {
         'uid': uid,
+        'groupId': groupId,
         'courtType': courtType == CourtType.half ? 'half' : 'full',
         'players': players.map((p) => p.toMap()).toList(),
         if (ballX != null) 'ballX': ballX,
         if (ballY != null) 'ballY': ballY,
+        if (ghostBalls.isNotEmpty) 'ghostBalls': ghostBalls,
         'arrows': arrows.map((a) => a.toMap()).toList(),
         'createdAt': Timestamp.fromDate(createdAt),
         if (noteId != null) 'noteId': noteId,
@@ -113,6 +133,7 @@ class TacticalMap {
     List<PlayerPiece>? players,
     double? ballX,
     double? ballY,
+    List<List<double>>? ghostBalls,
     List<ArrowPath>? arrows,
     String? noteId,
     String? title,
@@ -121,14 +142,32 @@ class TacticalMap {
       TacticalMap(
         id: id,
         uid: uid,
+        groupId: groupId,
         courtType: courtType ?? this.courtType,
         players: players ?? this.players,
         ballX: ballX ?? this.ballX,
         ballY: ballY ?? this.ballY,
+        ghostBalls: ghostBalls ?? this.ghostBalls,
         arrows: arrows ?? this.arrows,
         createdAt: createdAt,
         noteId: noteId ?? this.noteId,
         title: title ?? this.title,
         imageUrl: imageUrl ?? this.imageUrl,
+      );
+
+  TacticalMap removeBall() => TacticalMap(
+        id: id,
+        uid: uid,
+        groupId: groupId,
+        courtType: courtType,
+        players: players,
+        ballX: null,
+        ballY: null,
+        ghostBalls: ghostBalls,
+        arrows: arrows,
+        createdAt: createdAt,
+        noteId: noteId,
+        title: title,
+        imageUrl: imageUrl,
       );
 }

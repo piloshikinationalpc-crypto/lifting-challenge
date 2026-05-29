@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
+import '../models/group.dart';
 import '../models/tactical_map.dart';
 import '../models/lifting_record.dart';
 import '../services/tactical_map_service.dart';
@@ -69,10 +69,10 @@ class _TacticalMapAlbum extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final groupId = GroupScope.of(context);
 
     return StreamBuilder<List<TacticalMap>>(
-      stream: TacticalMapService().myMaps(uid),
+      stream: TacticalMapService().myMaps(groupId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -138,7 +138,7 @@ class _MapTile extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => TacticalBoardScreen(linkedMapId: map.id),
+          builder: (_) => TacticalBoardScreen(groupId: map.groupId, linkedMapId: map.id),
         ),
       ),
       onLongPress: () => _confirmDelete(context),
@@ -235,10 +235,10 @@ class _VideoAlbum extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final groupId = GroupScope.of(context);
 
     return StreamBuilder<List<LiftingRecord>>(
-      stream: RecordService().myRecords(uid),
+      stream: RecordService().myRecords(groupId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

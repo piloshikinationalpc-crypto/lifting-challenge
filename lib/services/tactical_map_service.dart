@@ -18,8 +18,8 @@ class TacticalMapService {
     await _col.doc(id).delete();
   }
 
-  Stream<List<TacticalMap>> myMaps(String uid) {
-    return _col.where('uid', isEqualTo: uid).snapshots().map((s) {
+  Stream<List<TacticalMap>> myMaps(String groupId) {
+    return _col.where('groupId', isEqualTo: groupId).snapshots().map((s) {
       final list = s.docs.map(TacticalMap.fromDoc).toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;

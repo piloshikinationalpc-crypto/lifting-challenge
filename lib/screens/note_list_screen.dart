@@ -1,31 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../models/group.dart';
 import '../models/soccer_note.dart';
 import '../services/note_service.dart';
 import 'note_edit_screen.dart';
 
-class NoteListScreen extends StatelessWidget {
+class NoteListScreen extends StatefulWidget {
   const NoteListScreen({super.key});
+
+  @override
+  State<NoteListScreen> createState() => _NoteListScreenState();
+}
+
+class _NoteListScreenState extends State<NoteListScreen> {
+  List<SoccerNote> _notes = [];
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final service = NoteService();
+    final groupId = GroupScope.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('サッカーノート'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.flag_outlined),
+            tooltip: '目標一覧',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _SummaryScreen(
+                  title: '目標一覧',
+                  notes: _notes,
+                  type: _SummaryType.goals,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.thumb_up_outlined),
+            tooltip: 'よかった点一覧',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _SummaryScreen(
+                  title: 'よかった点一覧',
+                  notes: _notes,
+                  type: _SummaryType.goodPoints,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.checklist),
+            tooltip: '課題一覧',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _SummaryScreen(
+                  title: '課題一覧',
+                  notes: _notes,
+                  type: _SummaryType.improvements,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: StreamBuilder<List<SoccerNote>>(
-        stream: service.myNotes(uid),
+        stream: NoteService().myNotes(uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final notes = snapshot.data ?? [];
+          if (snapshot.hasData) _notes = snapshot.data!;
+          final notes = _notes;
+
           if (notes.isEmpty) {
             return Center(
               child: Column(
@@ -45,14 +99,14 @@ class NoteListScreen extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: notes.length,
-            separatorBuilder: (context, i) => const SizedBox(height: 8),
-            itemBuilder: (context, i) => _NoteCard(note: notes[i]),
+            separatorBuilder: (_, i) => const SizedBox(height: 8),
+            itemBuilder: (_, i) => _NoteCard(note: notes[i], groupId: groupId),
           );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'note_fab',
-        onPressed: () => _showTypeSelector(context),
+        onPressed: () => _showTypeSelector(context, groupId),
         icon: const Icon(Icons.add),
         label: const Text('ノートを書く'),
         backgroundColor: Colors.green,
@@ -61,7 +115,16 @@ class NoteListScreen extends StatelessWidget {
     );
   }
 
-  void _showTypeSelector(BuildContext context) {
+  void _showTypeSelector(BuildContext context, String groupId) {
+    final practiceNotes = _notes
+        .where((n) => n.type == NoteType.practice)
+        .toList();
+    final carryOver = practiceNotes.isNotEmpty
+        ? practiceNotes.first.improvementTasks
+            .where((t) => !t.done)
+            .toList()
+        : <NoteTask>[];
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -80,15 +143,20 @@ class NoteListScreen extends StatelessWidget {
               const SizedBox(height: 20),
               _TypeButton(
                 icon: Icons.sports_soccer,
-                label: '練習ノート',
+                label: carryOver.isNotEmpty
+                    ? '練習ノート（前回の改善点${carryOver.length}件）'
+                    : '練習ノート',
                 color: Colors.green,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const NoteEditScreen(type: NoteType.practice),
+                      builder: (_) => NoteEditScreen(
+                        type: NoteType.practice,
+                        groupId: groupId,
+                        initialTasks: carryOver,
+                      ),
                     ),
                   );
                 },
@@ -103,8 +171,10 @@ class NoteListScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const NoteEditScreen(type: NoteType.match),
+                      builder: (_) => NoteEditScreen(
+                        type: NoteType.match,
+                        groupId: groupId,
+                      ),
                     ),
                   );
                 },
@@ -116,6 +186,102 @@ class NoteListScreen extends StatelessWidget {
     );
   }
 }
+
+// ───────── まとめ画面 ─────────
+
+enum _SummaryType { goals, goodPoints, improvements }
+
+class _SummaryScreen extends StatelessWidget {
+  final String title;
+  final List<SoccerNote> notes;
+  final _SummaryType type;
+
+  const _SummaryScreen({
+    required this.title,
+    required this.notes,
+    required this.type,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = DateFormat('yyyy/MM/dd (E)', 'ja');
+    final sorted = [...notes]..sort((a, b) => b.date.compareTo(a.date));
+
+    final items = <({DateTime date, NoteType noteType, String text, bool? done})>[];
+    for (final note in sorted) {
+      switch (type) {
+        case _SummaryType.goals:
+          for (final g in note.goals) {
+            items.add((date: note.date, noteType: note.type, text: g, done: null));
+          }
+        case _SummaryType.goodPoints:
+          for (final g in note.goodPointsList) {
+            items.add((date: note.date, noteType: note.type, text: g, done: null));
+          }
+        case _SummaryType.improvements:
+          for (final t in note.improvementTasks) {
+            items.add((date: note.date, noteType: note.type, text: t.text, done: t.done));
+          }
+      }
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
+      body: items.isEmpty
+          ? Center(
+              child: Text('まだ記録がないよ',
+                  style: TextStyle(color: Colors.grey.shade500)),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: items.length,
+              separatorBuilder: (_, i) => const Divider(height: 1),
+              itemBuilder: (_, i) {
+                final item = items[i];
+                final isMatch = item.noteType == NoteType.match;
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isMatch ? Colors.orange : Colors.green,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isMatch ? '試合' : '練習',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  title: Text(
+                    item.text,
+                    style: TextStyle(
+                      decoration: item.done == true ? TextDecoration.lineThrough : null,
+                      color: item.done == true ? Colors.grey : null,
+                    ),
+                  ),
+                  subtitle: Text(fmt.format(item.date),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                  trailing: item.done != null
+                      ? Icon(
+                          item.done! ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: item.done! ? Colors.green : Colors.grey,
+                          size: 20,
+                        )
+                      : null,
+                );
+              },
+            ),
+    );
+  }
+}
+
+// ───────── 補助ウィジェット ─────────
 
 class _TypeButton extends StatelessWidget {
   final IconData icon;
@@ -135,7 +301,7 @@ class _TypeButton extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon),
-      label: Text(label, style: const TextStyle(fontSize: 16)),
+      label: Text(label, style: const TextStyle(fontSize: 15)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
@@ -148,7 +314,8 @@ class _TypeButton extends StatelessWidget {
 
 class _NoteCard extends StatelessWidget {
   final SoccerNote note;
-  const _NoteCard({required this.note});
+  final String groupId;
+  const _NoteCard({required this.note, required this.groupId});
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +331,11 @@ class _NoteCard extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => NoteEditScreen(note: note, type: note.type),
+            builder: (_) => NoteEditScreen(
+              note: note,
+              type: note.type,
+              groupId: groupId,
+            ),
           ),
         ),
         child: Padding(
@@ -175,9 +346,7 @@ class _NoteCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: isMatch
-                      ? Colors.orange.shade100
-                      : Colors.green.shade100,
+                  color: isMatch ? Colors.orange.shade100 : Colors.green.shade100,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -193,8 +362,7 @@ class _NoteCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: isMatch ? Colors.orange : Colors.green,
                             borderRadius: BorderRadius.circular(20),
@@ -209,19 +377,23 @@ class _NoteCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(fmt.format(note.date),
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600)),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        if (note.rating != null && !isMatch) ...[
+                          const Spacer(),
+                          Icon(Icons.star, size: 14, color: Colors.amber.shade600),
+                          Text(' ${note.rating}点',
+                              style: TextStyle(fontSize: 12, color: Colors.amber.shade700)),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       isMatch
-                          ? 'vs ${note.opponent?.isEmpty == false ? note.opponent! : '相手未記入'}'
-                          : note.goal.isEmpty
-                              ? '目標未記入'
-                              : note.goal,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.bold),
+                          ? 'vs ${note.opponent?.isNotEmpty == true ? note.opponent! : '相手未記入'}'
+                          : note.goals.isNotEmpty
+                              ? note.goals.first
+                              : '目標未記入',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -242,8 +414,7 @@ class _NoteCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text('$doneCount/$totalCount',
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600)),
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                         ],
                       ),
                     ],

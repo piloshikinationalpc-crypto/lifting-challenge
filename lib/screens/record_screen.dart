@@ -6,10 +6,10 @@ import 'package:video_player/video_player.dart';
 import '../models/lifting_record.dart';
 import '../services/record_service.dart';
 import '../services/storage_service.dart';
-import '../services/gemini_service.dart';
 
 class RecordScreen extends StatefulWidget {
-  const RecordScreen({super.key});
+  final String groupId;
+  const RecordScreen({super.key, required this.groupId});
 
   @override
   State<RecordScreen> createState() => _RecordScreenState();
@@ -20,7 +20,6 @@ class _RecordScreenState extends State<RecordScreen> {
   File? _videoFile;
   VideoPlayerController? _videoController;
   bool _saving = false;
-  bool _analyzing = false;
 
   @override
   void dispose() {
@@ -46,35 +45,6 @@ class _RecordScreenState extends State<RecordScreen> {
     });
   }
 
-  Future<void> _analyzeWithAI() async {
-    if (_videoFile == null) return;
-    setState(() => _analyzing = true);
-    try {
-      final count = await GeminiService().countLiftings(_videoFile!);
-      if (count != null && count > 0) {
-        _countController.text = count.toString();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('AI判別: $count 回')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('判別できませんでした。手動で入力してください')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('AI判別エラー: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _analyzing = false);
-    }
-  }
-
   Future<void> _save() async {
     final count = int.tryParse(_countController.text);
     if (count == null || count <= 0) {
@@ -92,6 +62,7 @@ class _RecordScreenState extends State<RecordScreen> {
       }
       await RecordService().addRecord(LiftingRecord(
         uid: user.uid,
+        groupId: widget.groupId,
         displayName: user.displayName ?? '名無し',
         count: count,
         createdAt: DateTime.now(),
@@ -165,27 +136,6 @@ class _RecordScreenState extends State<RecordScreen> {
                 ),
               ],
             ),
-            if (_videoFile != null) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _analyzing ? null : _analyzeWithAI,
-                  icon: _analyzing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.auto_awesome),
-                  label: Text(_analyzing ? 'AI判別中...' : 'AIでリフティング回数を判別'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.deepPurple,
-                    side: const BorderSide(color: Colors.deepPurple),
-                  ),
-                ),
-              ),
-            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _saving ? null : _save,
@@ -233,8 +183,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
           children: [
             VideoPlayer(widget.controller),
             if (!widget.controller.value.isPlaying)
-              const Icon(Icons.play_circle_fill,
-                  size: 48, color: Colors.white70),
+              const Icon(Icons.play_circle_fill, size: 48, color: Colors.white70),
           ],
         ),
       ),

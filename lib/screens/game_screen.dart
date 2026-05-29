@@ -8,7 +8,8 @@ import '../services/record_service.dart';
 enum GameState { ready, playing, miss }
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  final String groupId;
+  const GameScreen({super.key, required this.groupId});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -106,6 +107,7 @@ class _GameScreenState extends State<GameScreen>
     if (user == null) return;
     await RecordService().addRecord(LiftingRecord(
       uid: user.uid,
+      groupId: widget.groupId,
       displayName: user.displayName ?? '名無し',
       count: _count,
       createdAt: DateTime.now(),

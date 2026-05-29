@@ -5,30 +5,39 @@ enum NoteType { practice, match }
 class NoteTask {
   final String text;
   final bool done;
+  final String? sourceNoteId;
 
-  NoteTask({required this.text, this.done = false});
+  NoteTask({required this.text, this.done = false, this.sourceNoteId});
 
   NoteTask copyWith({String? text, bool? done}) =>
-      NoteTask(text: text ?? this.text, done: done ?? this.done);
+      NoteTask(text: text ?? this.text, done: done ?? this.done, sourceNoteId: sourceNoteId);
 
-  Map<String, dynamic> toMap() => {'text': text, 'done': done};
+  Map<String, dynamic> toMap() => {
+        'text': text,
+        'done': done,
+        if (sourceNoteId != null) 'sourceNoteId': sourceNoteId,
+      };
 
-  factory NoteTask.fromMap(Map<String, dynamic> m) =>
-      NoteTask(text: m['text'] as String, done: (m['done'] as bool?) ?? false);
+  factory NoteTask.fromMap(Map<String, dynamic> m) => NoteTask(
+        text: m['text'] as String,
+        done: (m['done'] as bool?) ?? false,
+        sourceNoteId: m['sourceNoteId'] as String?,
+      );
 }
 
 class SoccerNote {
   final String? id;
   final String uid;
+  final String groupId;
   final NoteType type;
   final DateTime date;
   final DateTime createdAt;
 
-  // 共通フィールド
-  final String goal;
+  final List<String> goals;
   final List<NoteTask> tasks;
-  final String goodPoints;
-  final String improvements;
+  final List<String> goodPointsList;
+  final List<NoteTask> improvementTasks;
+  final int? rating;
   final String memo;
 
   // 試合ノート専用
@@ -38,22 +47,21 @@ class SoccerNote {
   final String? goodPlays;
   final String? tactics;
 
-  // AI
   final String? aiAdvice;
-
-  // 戦術マップ連携
   final String? tacticalMapId;
 
   SoccerNote({
     this.id,
     required this.uid,
+    required this.groupId,
     required this.type,
     required this.date,
     required this.createdAt,
-    this.goal = '',
+    this.goals = const [],
     this.tasks = const [],
-    this.goodPoints = '',
-    this.improvements = '',
+    this.goodPointsList = const [],
+    this.improvementTasks = const [],
+    this.rating,
     this.memo = '',
     this.opponent,
     this.score,
@@ -66,18 +74,51 @@ class SoccerNote {
 
   factory SoccerNote.fromDoc(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
+
+    // 旧 goal (String) → goals (List<String>) 後方互換
+    final List<String> goals;
+    if (d['goals'] != null) {
+      goals = (d['goals'] as List).cast<String>();
+    } else {
+      final old = d['goal'] as String? ?? '';
+      goals = old.isNotEmpty ? [old] : [];
+    }
+
+    // 旧 goodPoints (String) → goodPointsList (List<String>) 後方互換
+    final List<String> goodPointsList;
+    if (d['goodPointsList'] != null) {
+      goodPointsList = (d['goodPointsList'] as List).cast<String>();
+    } else {
+      final old = d['goodPoints'] as String? ?? '';
+      goodPointsList = old.isNotEmpty ? [old] : [];
+    }
+
+    // 旧 improvements (String) → improvementTasks (List<NoteTask>) 後方互換
+    final List<NoteTask> improvementTasks;
+    if (d['improvementTasks'] != null) {
+      improvementTasks =
+          ((d['improvementTasks'] as List).cast<Map<String, dynamic>>())
+              .map(NoteTask.fromMap)
+              .toList();
+    } else {
+      final old = d['improvements'] as String? ?? '';
+      improvementTasks = old.isNotEmpty ? [NoteTask(text: old)] : [];
+    }
+
     return SoccerNote(
       id: doc.id,
       uid: d['uid'] as String,
+      groupId: d['groupId'] as String? ?? '',
       type: (d['type'] as String?) == 'match' ? NoteType.match : NoteType.practice,
       date: (d['date'] as Timestamp).toDate(),
       createdAt: (d['createdAt'] as Timestamp).toDate(),
-      goal: d['goal'] as String? ?? '',
+      goals: goals,
       tasks: ((d['tasks'] as List?)?.cast<Map<String, dynamic>>() ?? [])
           .map(NoteTask.fromMap)
           .toList(),
-      goodPoints: d['goodPoints'] as String? ?? '',
-      improvements: d['improvements'] as String? ?? '',
+      goodPointsList: goodPointsList,
+      improvementTasks: improvementTasks,
+      rating: d['rating'] as int?,
       memo: d['memo'] as String? ?? '',
       opponent: d['opponent'] as String?,
       score: d['score'] as String?,
@@ -92,13 +133,15 @@ class SoccerNote {
 
   Map<String, dynamic> toMap() => {
         'uid': uid,
+        'groupId': groupId,
         'type': type == NoteType.match ? 'match' : 'practice',
         'date': Timestamp.fromDate(date),
         'createdAt': Timestamp.fromDate(createdAt),
-        'goal': goal,
+        'goals': goals,
         'tasks': tasks.map((t) => t.toMap()).toList(),
-        'goodPoints': goodPoints,
-        'improvements': improvements,
+        'goodPointsList': goodPointsList,
+        'improvementTasks': improvementTasks.map((t) => t.toMap()).toList(),
+        if (rating != null) 'rating': rating,
         'memo': memo,
         if (opponent != null) 'opponent': opponent,
         if (score != null) 'score': score,
@@ -113,10 +156,11 @@ class SoccerNote {
     String? id,
     NoteType? type,
     DateTime? date,
-    String? goal,
+    List<String>? goals,
     List<NoteTask>? tasks,
-    String? goodPoints,
-    String? improvements,
+    List<String>? goodPointsList,
+    List<NoteTask>? improvementTasks,
+    int? rating,
     String? memo,
     String? opponent,
     String? score,
@@ -129,13 +173,15 @@ class SoccerNote {
       SoccerNote(
         id: id ?? this.id,
         uid: uid,
+        groupId: groupId,
         type: type ?? this.type,
         date: date ?? this.date,
         createdAt: createdAt,
-        goal: goal ?? this.goal,
+        goals: goals ?? this.goals,
         tasks: tasks ?? this.tasks,
-        goodPoints: goodPoints ?? this.goodPoints,
-        improvements: improvements ?? this.improvements,
+        goodPointsList: goodPointsList ?? this.goodPointsList,
+        improvementTasks: improvementTasks ?? this.improvementTasks,
+        rating: rating ?? this.rating,
         memo: memo ?? this.memo,
         opponent: opponent ?? this.opponent,
         score: score ?? this.score,
