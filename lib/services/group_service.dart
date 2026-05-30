@@ -51,6 +51,22 @@ class GroupService {
         .map(Group.fromDoc);
   }
 
+  // groupIdが空のデータを現在のgroupIdに更新する（初回マイグレーション用）
+  Future<void> migrateOldData(String uid, String groupId) async {
+    final batch = _db.batch();
+    for (final col in ['soccer_notes', 'tactical_maps', 'records']) {
+      final snap = await _db
+          .collection(col)
+          .where('uid', isEqualTo: uid)
+          .where('groupId', isEqualTo: '')
+          .get();
+      for (final doc in snap.docs) {
+        batch.update(doc.reference, {'groupId': groupId});
+      }
+    }
+    await batch.commit();
+  }
+
   String _generateCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final rand = Random.secure();

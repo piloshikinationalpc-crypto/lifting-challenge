@@ -60,7 +60,11 @@ class _GroupGateState extends State<_GroupGate> {
   }
 
   Future<void> _loadGroupId() async {
-    final id = await GroupService().getGroupId(widget.uid);
+    final service = GroupService();
+    final id = await service.getGroupId(widget.uid);
+    if (id != null) {
+      await service.migrateOldData(widget.uid, id);
+    }
     if (mounted) setState(() { _groupId = id; _loading = false; });
   }
 

@@ -17,8 +17,8 @@ class NoteService {
     await _col.doc(id).delete();
   }
 
-  Stream<List<SoccerNote>> myNotes(String uid) {
-    return _col.where('uid', isEqualTo: uid).snapshots().map((s) {
+  Stream<List<SoccerNote>> myNotes(String groupId) {
+    return _col.where('groupId', isEqualTo: groupId).snapshots().map((s) {
       final list = s.docs.map(SoccerNote.fromDoc).toList();
       list.sort((a, b) => b.date.compareTo(a.date));
       return list;

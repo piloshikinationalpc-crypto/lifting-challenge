@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../models/group.dart';
 import '../models/soccer_note.dart';
@@ -18,7 +17,6 @@ class _NoteListScreenState extends State<NoteListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
     final groupId = GroupScope.of(context);
 
     return Scaffold(
@@ -72,7 +70,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
         ],
       ),
       body: StreamBuilder<List<SoccerNote>>(
-        stream: NoteService().myNotes(uid),
+        stream: NoteService().myNotes(groupId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
