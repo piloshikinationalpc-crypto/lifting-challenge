@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/group.dart';
 import '../services/group_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,6 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _saving = false;
   String? _inviteCode;
   String? _groupName;
+  StreamSubscription<Group>? _groupSub;
 
   @override
   void initState() {
@@ -26,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    _groupSub?.cancel();
     _nameController.dispose();
     super.dispose();
   }
@@ -35,7 +40,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (uid == null) return;
     final groupId = await GroupService().getGroupId(uid);
     if (groupId == null || !mounted) return;
-    GroupService().groupStream(groupId).listen((group) {
+    // グループ切り替え後にもう一度呼ばれるので、前のグループの購読を必ず切る。
+    // 切らないと旧グループのドキュメントが変わったときに、
+    // 表示中の招待コード／グループ名が旧グループのものへ勝手に巻き戻る。
+    await _groupSub?.cancel();
+    _groupSub = GroupService().groupStream(groupId).listen((group) {
       if (mounted) {
         setState(() {
           _inviteCode = group.inviteCode;
@@ -70,7 +79,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (ok != true || ctrl.text.trim().isEmpty) return;
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
-      await GroupService().joinGroup(uid, ctrl.text.trim());
+      final newGroupId = await GroupService().joinGroup(uid, ctrl.text.trim());
+      // これを忘れると GroupScope が古いままで、記録やノートが前のグループへ保存され続ける。
+      groupIdChanged.value = newGroupId;
       await _loadGroupInfo();
       if (mounted) {
         ScaffoldMessenger.of(context)

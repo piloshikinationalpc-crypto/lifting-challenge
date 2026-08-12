@@ -25,6 +25,15 @@ class Group {
   }
 }
 
+/// グループを切り替えたことをアプリ全体へ知らせる通知役。
+///
+/// GroupScope は起動時に一度だけ組み立てられるため、プロフィール画面から
+/// 招待コードで別グループに参加しても、記録・ノート・戦術ボードは
+/// 古いグループIDを掴んだままだった（アプリを再起動するまで直らず、
+/// その間の保存はすべて前のグループへ書き込まれていた）。
+/// 参加処理のあとにこの値を新しいグループIDへ更新すると GroupScope が張り替わる。
+final ValueNotifier<String?> groupIdChanged = ValueNotifier<String?>(null);
+
 class GroupScope extends InheritedWidget {
   final String groupId;
 

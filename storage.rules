@@ -1,9 +1,26 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    // アップロード先は lib/services/storage_service.dart の2種類だけ:
+    //   videos/{uid}/{ファイル名}        … リフティング動画
+    //   tactical_maps/{uid}/{ファイル名}  … 戦術ボードの画像
+    // 以前は {allPaths=**} に対して「ログイン済みなら誰でも書き込み可」だったため、
+    // 他人の動画を上書き・削除でき、サイズ上限も無くStorage課金が青天井だった。
+
+    // 動画: 本人のフォルダにだけ書ける。上限500MB。
+    match /videos/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && (request.resource == null || request.resource.size < 500 * 1024 * 1024);
+    }
+
+    // 戦術ボード画像: 本人のフォルダにだけ書ける。上限20MB。
+    match /tactical_maps/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && (request.resource == null || request.resource.size < 20 * 1024 * 1024);
     }
   }
 }

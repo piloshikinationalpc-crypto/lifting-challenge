@@ -21,7 +21,8 @@ class GroupService {
     return doc.id;
   }
 
-  Future<void> joinGroup(String uid, String inviteCode) async {
+  // 参加したグループのIDを返す（呼び出し側がGroupScopeを差し替えるのに必要）
+  Future<String> joinGroup(String uid, String inviteCode) async {
     final snap = await _db
         .collection('groups')
         .where('inviteCode', isEqualTo: inviteCode.toUpperCase().trim())
@@ -36,6 +37,7 @@ class GroupService {
       {'groupId': groupId},
       SetOptions(merge: true),
     );
+    return groupId;
   }
 
   Future<String?> getGroupId(String uid) async {

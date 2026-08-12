@@ -57,6 +57,20 @@ class _GroupGateState extends State<_GroupGate> {
   void initState() {
     super.initState();
     _loadGroupId();
+    groupIdChanged.addListener(_onGroupChanged);
+  }
+
+  @override
+  void dispose() {
+    groupIdChanged.removeListener(_onGroupChanged);
+    super.dispose();
+  }
+
+  // プロフィール画面などで別グループに参加したら、GroupScope を新しいIDへ張り替える。
+  void _onGroupChanged() {
+    final id = groupIdChanged.value;
+    if (id == null || id == _groupId || !mounted) return;
+    setState(() => _groupId = id);
   }
 
   Future<void> _loadGroupId() async {
