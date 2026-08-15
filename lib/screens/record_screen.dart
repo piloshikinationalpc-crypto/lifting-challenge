@@ -36,6 +36,23 @@ class _RecordScreenState extends State<RecordScreen> {
     );
     if (picked == null) return;
     final file = File(picked.path);
+    // 大きすぎる動画は、延々アップロードした末にStorageルールで拒否される。
+    // 待たせてから失敗させないよう、選んだ時点で弾いて理由を伝える。
+    final size = await file.length();
+    if (!mounted) return;
+    if (size > StorageService.maxVideoBytes) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('動画が大きすぎます（${StorageService.formatMb(size)}MB）。'
+            '${StorageService.formatMb(StorageService.maxVideoBytes)}MB以内の動画を選んでください'),
+      ));
+      return;
+    }
+    if (size > StorageService.warnVideoBytes) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${StorageService.formatMb(size)}MBあります。'
+            'アップロードに時間がかかるかもしれません'),
+      ));
+    }
     final ctrl = VideoPlayerController.file(file);
     await ctrl.initialize();
     setState(() {
@@ -60,14 +77,27 @@ class _RecordScreenState extends State<RecordScreen> {
       if (_videoFile != null) {
         videoUrl = await StorageService().uploadVideo(_videoFile!);
       }
-      await RecordService().addRecord(LiftingRecord(
-        uid: user.uid,
-        groupId: widget.groupId,
-        displayName: user.displayName ?? '名無し',
-        count: count,
-        createdAt: DateTime.now(),
-        videoUrl: videoUrl,
-      ));
+      try {
+        await RecordService().addRecord(LiftingRecord(
+          uid: user.uid,
+          groupId: widget.groupId,
+          displayName: user.displayName ?? '名無し',
+          count: count,
+          createdAt: DateTime.now(),
+          videoUrl: videoUrl,
+        ));
+      } catch (e) {
+        // 記録の保存に失敗したら、先にアップロードした動画を消しておく。
+        // 残しても、どの記録からも参照されないままStorageに溜まるだけ。
+        if (videoUrl != null) {
+          try {
+            await StorageService().deleteByUrl(videoUrl);
+          } catch (_) {
+            // 消せなくても保存失敗の通知は出す
+          }
+        }
+        rethrow;
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
